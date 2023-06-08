@@ -1,20 +1,59 @@
-version: '3.7'
+version: '3'
 services:
-  opensearch:
-    image: opensearchproject/opensearch:1.2.4
+  opensearch-node1:
+    image: opensearch-1.3.8
+    container_name: apesmaster-node1-elastic
     environment:
-      discovery.type: single-node
-      plugins.security.disabled: "true" # disable https and logins
-      compatibility.override_main_response_version: "true"
+      - cluster.name=apesmaster-cluster
+      - node.name=apesmaster-node1
+      - discovery.seed_hosts=xxx:9300,xxx:9300
+      - cluster.initial_master_nodes=xxx,xxx,xxx
+      - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+        hard: 65536
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
+    volumes:
+      - /mnt/elkstore/usr/share/opensearch/data/:/usr/share/opensearch/data
+      - /mnt/elkstore/var/log/analyzer/:/usr/share/opensearch/logs/
+      - ./myopensearch.yml:/usr/share/opensearch/config/opensearch.yml
+      - ./jvm.options:/usr/share/opensearch/config/jvm.options
+      - ./roles.yml:/usr/share/opensearch/plugins/opensearch-security/securityconfig/roles.yml
+      - ./audit.yml:/usr/share/opensearch/plugins/opensearch-security/securityconfig/audit.yml
+      - ./config_security.yml:/usr/share/opensearch/plugins/opensearch-security/securityconfig/config.yml
+      - ./roles_map.yml:/usr/share/opensearch/plugins/opensearch-security/securityconfig/roles_mapping.yml
+      - ./internal_users.yml:/usr/share/opensearch/plugins/opensearch-security/securityconfig/internal_users.yml
+    mem_limit: 8g
     ports:
       - 9200:9200
-      - 9600:9600 # required for Performance Analyzer
-
-  # console at http://localhost:5601/app/dev_tools#/console
+      - 9300:9300
+    networks:
+      - mytest
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:1.2.0
+    image: opensearchproject/opensearch-dashboards:1.3.8
+    container_name: apesmaster-node1-kibana
     ports:
       - 5601:5601
+    expose:
+      - "5601"
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
     environment:
-      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
-      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+      OPENSEARCH_HOSTS: '["https://xxx:9200","https://xxx:9200","https://xxx:9200"]'
+    mem_limit: 0.5g
+    networks:
+      - mytest
+
+networks:
+  mytest:
+    external: true
+    name: host
