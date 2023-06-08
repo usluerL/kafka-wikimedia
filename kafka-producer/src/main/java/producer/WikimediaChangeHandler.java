@@ -1,4 +1,4 @@
-package org.example.kafka.producer;
+package producer;
 
 
 import com.launchdarkly.eventsource.MessageEvent;
